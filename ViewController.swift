@@ -15,6 +15,8 @@ class ViewController: UIViewController {
     
     let audioPath = NSBundle.mainBundle().pathForResource("rachmaninov-romance-sixhands-alianello", ofType: "mp3")!
     
+    let theSession = AVAudioSession.sharedInstance()
+    
     /*
     func handleInterruption(notification: NSNotification) {
         
@@ -54,23 +56,32 @@ class ViewController: UIViewController {
         }
     }
     */
-    
+        
     func handleInterruption(notification: NSNotification) {
         // new from Leo Dabus http://stackoverflow.com/a/38800403/1827488
         print("handleInterruption")
-        guard
-            let value = (notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? NSNumber)?.unsignedIntegerValue,
-            let interruptionType = AVAudioSessionInterruptionType(rawValue: value)
-            else { return }
+        guard let value = (notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? NSNumber)?.unsignedIntegerValue,
+            let interruptionType =  AVAudioSessionInterruptionType(rawValue: value)
+            else {
+                print("notification.userInfo?[AVAudioSessionInterruptionTypeKey]", notification.userInfo?[AVAudioSessionInterruptionTypeKey])
+                return }
         switch interruptionType {
         case .Began:
             print("began")
+            print("audioPlayer.playing", player.playing)
         // player is paused and session is inactive. need to update UI)
         default :
             print("ended")
-            if let option = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? AVAudioSessionInterruptionOptions where option == .ShouldResume {
+            if let optionValue = (notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? NSNumber)?.unsignedIntegerValue where AVAudioSessionInterruptionOptions(rawValue: optionValue) == .ShouldResume {
+                print("should resume")
                 // ok to resume playing, re activate session and resume playing
                 // need to update UI
+                do {
+                    try theSession.setActive(true)
+                    player.play()
+                } catch let error as NSError {
+                    print(error.localizedDescription)
+                }
             }
         }
     }
@@ -91,10 +102,10 @@ class ViewController: UIViewController {
         
         // enable play in background http://stackoverflow.com/a/30280699/1827488 but this audio still gets interrupted by alerts
         do {
-            try AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback)
+            try theSession.setCategory(AVAudioSessionCategoryPlayback)
             print("AVAudioSession Category Playback OK")
             do {
-                try AVAudioSession.sharedInstance().setActive(true)
+                try theSession.setActive(true)
                 print("AVAudioSession is Active")
             } catch let error as NSError {
                 print(error.localizedDescription)
@@ -115,10 +126,8 @@ class ViewController: UIViewController {
         
         // add observer to handle audio interruptions
         // using 'object: nil' does not have a noticeable effect
-        /**/
-        let theSession = AVAudioSession.sharedInstance()
+        //let theSession = AVAudioSession.sharedInstance()
         NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(ViewController.handleInterruption(_:)), name: AVAudioSessionInterruptionNotification, object: theSession)
-        /**/
         
         // start playing audio
         player.play()
